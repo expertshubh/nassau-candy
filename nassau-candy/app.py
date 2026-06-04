@@ -1,5 +1,8 @@
 import os, sys, math
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
+
+# ── Fix paths for Streamlit Cloud ──────────────────────────────────────────
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(BASE_DIR, "src"))
 
 import joblib
 import numpy as np
@@ -48,14 +51,14 @@ st.markdown("""
 # ── Load model & data ──────────────────────────────────────────────────────
 @st.cache_resource
 def load_assets():
-    model        = joblib.load(os.path.join("models", "best_model.pkl"))
-    encoders     = joblib.load(os.path.join("models", "encoders.pkl"))
-    feature_cols = joblib.load(os.path.join("models", "feature_cols.pkl"))
+    model        = joblib.load(os.path.join(BASE_DIR, "models", "best_model.pkl"))
+    encoders     = joblib.load(os.path.join(BASE_DIR, "models", "encoders.pkl"))
+    feature_cols = joblib.load(os.path.join(BASE_DIR, "models", "feature_cols.pkl"))
     return model, encoders, feature_cols
 
 @st.cache_data
 def load_data():
-    df, _ = load_and_clean(os.path.join("data", "Nassau_Candy_Distributor.csv"))
+    df, _ = load_and_clean(os.path.join(BASE_DIR, "data", "Nassau_Candy_Distributor.csv"))
     return df
 
 model, encoders, feature_cols = load_assets()
@@ -126,11 +129,12 @@ curr_lt, curr_dist = predict_lead_time(sel_product, current_factory,
                                        sel_region, sel_ship_mode,
                                        sel_units, avg_cost)
 
-k1, k2, k3, k4 = st.columns(4)
-k1.metric("Current Factory",        current_factory)
-k2.metric("Predicted Lead Time",    f"{curr_lt} days")
+k1, k2, k3, k4, k5 = st.columns(5)
+k1.metric("Current Factory",          current_factory)
+k2.metric("Predicted Lead Time",      f"{curr_lt} days")
 k3.metric("Avg Gross Profit / Order", f"${avg_profit:.2f}")
-k4.metric("Shipping Distance",      f"{curr_dist:,.0f} mi")
+k4.metric("Shipping Distance",        f"{curr_dist:,.0f} mi")
+k5.metric("Model Confidence (R²)",    "0.18")
 
 st.divider()
 
@@ -203,7 +207,6 @@ with tab2:
     c3.metric("Distance Change",       f"{alt_dist:,.0f} mi",
               delta=f"{-delta_dist:,.0f} mi", delta_color="inverse")
 
-    # Comparison bar chart
     fig2 = go.Figure()
     fig2.add_trace(go.Bar(name="Current",     x=["Lead Time (days)", "Distance (miles)"],
                           y=[curr_lt, curr_dist], marker_color="#f9c74f"))
@@ -228,7 +231,7 @@ with tab3:
 
     all_recs = []
     for product in ALL_PRODUCTS:
-        cur_fac  = PRODUCT_FACTORY[product]
+        cur_fac   = PRODUCT_FACTORY[product]
         prod_cost = df[df["Product Name"] == product]["Cost"].mean()
         prod_gp   = df[df["Product Name"] == product]["Gross Profit"].mean()
         cur_lt, _ = predict_lead_time(product, cur_fac, sel_region,
@@ -239,16 +242,15 @@ with tab3:
             new_lt, new_dist = predict_lead_time(product, fac, sel_region,
                                                  sel_ship_mode, sel_units, prod_cost)
             improvement = cur_lt - new_lt
-            # Blend speed & profit based on priority slider
             score = (improvement * (1 - priority/100)) + (prod_gp * (priority/100) * 0.1)
             all_recs.append({
-                "Product":          product,
-                "From Factory":     cur_fac,
-                "To Factory":       fac,
-                "Lead Time Saving": round(improvement, 1),
-                "Gross Profit":     round(prod_gp, 2),
-                "Score":            round(score, 2),
-                "New Distance (mi)":int(new_dist),
+                "Product":           product,
+                "From Factory":      cur_fac,
+                "To Factory":        fac,
+                "Lead Time Saving":  round(improvement, 1),
+                "Gross Profit":      round(prod_gp, 2),
+                "Score":             round(score, 2),
+                "New Distance (mi)": int(new_dist),
             })
 
     rec_df = pd.DataFrame(all_recs).sort_values("Score", ascending=False).head(10)
@@ -275,7 +277,6 @@ with tab3:
 with tab4:
     st.subheader("⚠️ Risk & Profit Impact Panel")
 
-    # Profit distribution per product
     prod_stats = df.groupby("Product Name").agg(
         Avg_GP=("Gross Profit", "mean"),
         Std_GP=("Gross Profit", "std"),
@@ -295,7 +296,6 @@ with tab4:
                        font_color="white", height=400)
     st.plotly_chart(fig3, use_container_width=True)
 
-    # High-risk warnings
     st.markdown("#### 🚨 High-Risk Reassignment Alerts")
     high_risk = prod_stats[prod_stats["Risk"] > prod_stats["Risk"].median()]
     for _, row in high_risk.iterrows():
@@ -306,9 +306,8 @@ with tab4:
         </div>
         """, unsafe_allow_html=True)
 
-    # Model performance
     st.markdown("#### 📊 Model Performance Summary")
-    model_results_path = os.path.join("models", "model_results.csv")
+    model_results_path = os.path.join(BASE_DIR, "models", "model_results.csv")
     if os.path.exists(model_results_path):
         mr = pd.read_csv(model_results_path)
         st.dataframe(mr, use_container_width=True)
