@@ -34,7 +34,7 @@ This system addresses all four gaps with a live interactive dashboard.
 
 ## 🚀 Live Dashboard
 
-> 🔗 **[Launch App on Streamlit Cloud](#)** ← *(add your deployed link here)*
+> 🔗 **[Launch App on Streamlit Cloud](#)** ← *(https://jkxuvqrsghbsswhm6kidkz.streamlit.app/)*
 
 **4-Tab Dashboard:**
 
